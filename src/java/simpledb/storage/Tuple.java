@@ -3,6 +3,7 @@ package simpledb.storage;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 /**
  * Tuple maintains information about the contents of a tuple. Tuples have a
@@ -13,6 +14,26 @@ public class Tuple implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    private TupleDesc td;
+    private RecordId rId;
+    private Field[] fields;
+    public class FieldItr implements Iterator<Field> {
+        int cursor = 0;
+        @Override
+        public boolean hasNext() {
+            return cursor == fields.length;
+        }
+
+        @Override
+        public Field next() {
+            int i = cursor;
+            if(i >= fields.length) {
+                throw new NoSuchElementException();
+            }
+            cursor = i+1;
+            return fields[i];
+        }
+    }
     /**
      * Create a new tuple with the specified schema (type).
      *
@@ -22,6 +43,8 @@ public class Tuple implements Serializable {
      */
     public Tuple(TupleDesc td) {
         // some code goes here
+        this.td = td;
+        this.fields = new Field[td.getLength()];
     }
 
     /**
@@ -29,7 +52,7 @@ public class Tuple implements Serializable {
      */
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
+        return this.td;
     }
 
     /**
@@ -38,7 +61,7 @@ public class Tuple implements Serializable {
      */
     public RecordId getRecordId() {
         // some code goes here
-        return null;
+        return this.rId;
     }
 
     /**
@@ -49,6 +72,7 @@ public class Tuple implements Serializable {
      */
     public void setRecordId(RecordId rid) {
         // some code goes here
+        this.rId = rid;
     }
 
     /**
@@ -61,6 +85,10 @@ public class Tuple implements Serializable {
      */
     public void setField(int i, Field f) {
         // some code goes here
+        if(i < 0 || i >= fields.length){
+            throw new NoSuchElementException();
+        }
+        fields[i] = f;
     }
 
     /**
@@ -71,7 +99,10 @@ public class Tuple implements Serializable {
      */
     public Field getField(int i) {
         // some code goes here
-        return null;
+        if(i < 0 || i >= fields.length){
+            throw new NoSuchElementException();
+        }
+        return fields[i];
     }
 
     /**
@@ -94,7 +125,7 @@ public class Tuple implements Serializable {
     public Iterator<Field> fields()
     {
         // some code goes here
-        return null;
+        return new FieldItr();
     }
 
     /**
@@ -103,5 +134,6 @@ public class Tuple implements Serializable {
     public void resetTupleDesc(TupleDesc td)
     {
         // some code goes here
+        this.td = td;
     }
 }
