@@ -248,7 +248,11 @@ public class TupleDesc implements Serializable {
     public int hashCode() {
         // If you want to use TupleDesc as keys for HashMap, implement this so
         // that equal objects have equals hashCode() results
-        throw new UnsupportedOperationException("unimplemented");
+        int result = 17;
+        for(int i = 0; i < tdItems.length;i++){
+            result += 31*result+tdItems[i].hashCode();
+        }
+        return result;
     }
 
     /**
