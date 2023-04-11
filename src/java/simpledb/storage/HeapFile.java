@@ -22,6 +22,8 @@ import java.util.*;
  */
 public class HeapFile implements DbFile {
 
+    private File file;
+    private TupleDesc td;
     /**
      * Constructs a heap file backed by the specified file.
      * 
@@ -31,6 +33,8 @@ public class HeapFile implements DbFile {
      */
     public HeapFile(File f, TupleDesc td) {
         // some code goes here
+        this.file = f;
+        this.td = td;
     }
 
     /**
@@ -40,7 +44,7 @@ public class HeapFile implements DbFile {
      */
     public File getFile() {
         // some code goes here
-        return null;
+        return this.file;
     }
 
     /**
@@ -54,7 +58,7 @@ public class HeapFile implements DbFile {
      */
     public int getId() {
         // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return this.file.getAbsoluteFile().hashCode();
     }
 
     /**
@@ -64,12 +68,32 @@ public class HeapFile implements DbFile {
      */
     public TupleDesc getTupleDesc() {
         // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return this.td;
     }
 
     // see DbFile.java for javadocs
     public Page readPage(PageId pid) {
         // some code goes here
+        return readHeapPage(pid);
+    }
+    private HeapPage readHeapPage(PageId pid){
+        try {
+            InputStream is = new FileInputStream(file);
+            byte[] buf = new byte[(int) file.length()];
+            int offset = pid.getPageNumber()*BufferPool.getPageSize();
+            int count = is.read(buf, offset, BufferPool.getPageSize());
+            if(count < BufferPool.getPageSize()) {
+                System.out.println(count);
+                System.out.println(BufferPool.getPageSize());
+                throw new IllegalArgumentException();
+            }
+            is.close();
+            return new HeapPage(new HeapPageId(getId(),pid.getPageNumber()),buf);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         return null;
     }
 
@@ -84,7 +108,7 @@ public class HeapFile implements DbFile {
      */
     public int numPages() {
         // some code goes here
-        return 0;
+        return (int)file.length()/BufferPool.getPageSize();
     }
 
     // see DbFile.java for javadocs
@@ -106,8 +130,50 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
         // some code goes here
-        return null;
-    }
+        return new DbFileIterator() {
+            int cursor = -1;
+            Iterator<Tuple> itr;
+            @Override
+            public void open() throws DbException, TransactionAbortedException {
+                cursor = 0;
+                itr = readHeapPage(new HeapPageId(getId(),cursor)).iterator();
+                hasNext();
+            }
 
+            @Override
+            public boolean hasNext() throws DbException, TransactionAbortedException {
+                if(cursor < 0) return false;
+                while(!itr.hasNext()){
+                    cursor++;
+                    if(cursor < numPages()){
+                        itr = readHeapPage(new HeapPageId(getId(),cursor)).iterator();
+                    }else {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            @Override
+            public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
+                if(hasNext()) {
+                    return itr.next();
+                }
+                throw new NoSuchElementException();
+            }
+
+            @Override
+            public void rewind() throws DbException, TransactionAbortedException {
+                cursor = 0;
+                itr = readHeapPage(new HeapPageId(getId(),cursor)).iterator();
+                hasNext();
+            }
+
+            @Override
+            public void close() {
+                cursor = -1;
+            }
+        };
+    }
 }
 

@@ -30,18 +30,18 @@ public class HeapPage implements Page {
 
     private class HpItreator implements Iterator<Tuple> {
         private int cursor = 0;
-        private int nextIdx = 0;
-        private int usedSlot = getNumTuples()-getNumEmptySlots();
+        private int nextIdx = -1;
+        private final int usedSlot = getNumTuples()-getNumEmptySlots();
         @Override
         public boolean hasNext() {
-            return cursor == usedSlot;
+            return cursor < usedSlot;
         }
 
         @Override
         public Tuple next() {
-            for(;nextIdx < getNumTuples();nextIdx++){
+            for(nextIdx = nextIdx+1;nextIdx < getNumTuples();nextIdx++){
                 if(isSlotUsed(nextIdx)) {
-                    nextIdx++;
+                    cursor++;
                     return tuples[nextIdx];
                 }
             }
