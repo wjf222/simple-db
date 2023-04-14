@@ -1,14 +1,12 @@
 package simpledb.execution;
 
 import simpledb.common.Database;
-import simpledb.storage.DbFile;
+import simpledb.common.Permissions;
+import simpledb.storage.*;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
 import simpledb.common.Type;
 import simpledb.common.DbException;
-import simpledb.storage.DbFileIterator;
-import simpledb.storage.Tuple;
-import simpledb.storage.TupleDesc;
 
 import java.util.*;
 
@@ -22,9 +20,10 @@ public class SeqScan implements OpIterator {
     private static final long serialVersionUID = 1L;
 
     private int tableId;
-    private TransactionId tid;
+    private final TransactionId tid;
     private String tableAlias;
     private DbFileIterator itr;
+
     /**
      * Creates a sequential scan over the specified table as a part of the
      * specified transaction.
@@ -89,8 +88,7 @@ public class SeqScan implements OpIterator {
 
     public void open() throws DbException, TransactionAbortedException {
         // some code goes here
-        this.itr = Database.getCatalog().getDatabaseFile(this.tableId).iterator(this.tid);
-        this.itr.open();
+        rewind();
     }
 
     /**
@@ -135,6 +133,8 @@ public class SeqScan implements OpIterator {
     public void rewind() throws DbException, NoSuchElementException,
             TransactionAbortedException {
         // some code goes here
-        this.itr.rewind();
+        HeapFile table = (HeapFile)Database.getCatalog().getDatabaseFile(this.tableId);
+        this.itr = table.iterator(this.tid);
+        this.itr.open();
     }
 }
