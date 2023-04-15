@@ -154,6 +154,9 @@ public class HeapFile implements DbFile {
             @Override
             public boolean hasNext() throws DbException, TransactionAbortedException {
                 if(cursor < 0) return false;
+                if(itr == null) {
+                    return false;
+                }
                 while(!itr.hasNext()){
                     itr = readNextPage();
                     if(itr == null){
@@ -173,9 +176,12 @@ public class HeapFile implements DbFile {
 
             @Override
             public void rewind() throws DbException, TransactionAbortedException {
-                cursor = 0;
-                itr = readHeapPage(new HeapPageId(getId(),cursor)).iterator();
-                hasNext();
+                cursor = -1;
+                itr = null;
+                itr = readNextPage();
+                if(itr == null){
+                    throw new DbException("Can not open dbfile");
+                }
             }
 
             @Override

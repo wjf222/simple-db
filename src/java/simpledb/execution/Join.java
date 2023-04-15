@@ -1,5 +1,6 @@
 package simpledb.execution;
 
+import simpledb.storage.Field;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.common.DbException;
 import simpledb.storage.Tuple;
@@ -18,6 +19,8 @@ public class Join extends Operator {
     private OpIterator child1;
     private OpIterator child2;
     private TupleDesc newTd;
+    private Tuple nextChild1;
+    private Tuple nextChild2;
     /**
      * Constructor. Accepts two children to join and the predicate to join them
      * on
@@ -110,10 +113,42 @@ public class Join extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
-
+        while(child1.hasNext() || child2.hasNext()){
+            if(!child2.hasNext()){
+                nextChild1 = null;
+            } else {
+                nextChild2 = child2.next();
+            }
+            if(nextChild1 == null){
+                if(child1.hasNext()){
+                    nextChild1 = child1.next();
+                } else {
+                    return null;
+                }
+                child2.rewind();
+                nextChild2 = child2.next();
+            }
+            if(this.jPre.filter(nextChild1,nextChild2)){
+                return mergeTuple(nextChild1,nextChild2,this.newTd);
+            }
+        }
         return null;
     }
-
+    private static Tuple mergeTuple(Tuple t1,Tuple t2,TupleDesc td) {
+        Tuple next = new Tuple(td);
+        int i = 0;
+        for (Iterator<Field> it = t1.fields(); it.hasNext(); ) {
+            Field f = it.next();
+            next.setField(i,f);
+            i++;
+        }
+        for (Iterator<Field> it = t2.fields(); it.hasNext(); ) {
+            Field f = it.next();
+            next.setField(i,f);
+            i++;
+        }
+        return next;
+    }
     @Override
     public OpIterator[] getChildren() {
         // some code goes here

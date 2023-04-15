@@ -21,7 +21,7 @@ public class Tuple implements Serializable {
         int cursor = 0;
         @Override
         public boolean hasNext() {
-            return cursor == fields.length;
+            return cursor < fields.length;
         }
 
         @Override
@@ -115,7 +115,15 @@ public class Tuple implements Serializable {
      */
     public String toString() {
         // some code goes here
-        throw new UnsupportedOperationException("Implement this");
+        StringBuilder str = new StringBuilder();
+        for(Iterator<Field> itr = fields();itr.hasNext();){
+            Field f = itr.next();
+            str.append(f.toString()).append("\t");
+        }
+        if(str.length() > 0){
+            str.deleteCharAt(str.length()-1);
+        }
+        return str.toString();
     }
 
     /**
