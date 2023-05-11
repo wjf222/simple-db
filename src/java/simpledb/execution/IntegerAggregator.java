@@ -1,7 +1,15 @@
 package simpledb.execution;
 
+import net.sf.antcontrib.logic.Switch;
+import simpledb.common.DbException;
 import simpledb.common.Type;
+import simpledb.storage.Field;
+import simpledb.storage.IntField;
 import simpledb.storage.Tuple;
+import simpledb.storage.TupleDesc;
+import simpledb.transaction.TransactionAbortedException;
+
+import java.util.*;
 
 /**
  * Knows how to compute some aggregate over a set of IntFields.
@@ -10,6 +18,12 @@ public class IntegerAggregator implements Aggregator {
 
     private static final long serialVersionUID = 1L;
 
+    private int gbfield;
+    private Type gbfieldtype;
+    private int afield;
+    private Op what;
+    private Map<Field, List<Integer>> map;
+    private TupleDesc td;
     /**
      * Aggregate constructor
      * 
@@ -27,6 +41,16 @@ public class IntegerAggregator implements Aggregator {
 
     public IntegerAggregator(int gbfield, Type gbfieldtype, int afield, Op what) {
         // some code goes here
+        this.gbfield = gbfield;
+        this.gbfieldtype = gbfieldtype;
+        this.afield = afield;
+        this.what = what;
+        this.map = new HashMap<>();
+        if(this.gbfield == NO_GROUPING){
+            td = new TupleDesc(new Type[]{Type.INT_TYPE});
+        } else {
+            td = new TupleDesc(new Type[]{gbfieldtype,Type.INT_TYPE});
+        }
     }
 
     /**
@@ -38,8 +62,61 @@ public class IntegerAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) {
         // some code goes here
+        List<Integer> val;
+        if(this.gbfield == NO_GROUPING){
+            val = map.getOrDefault(null,new ArrayList<>());
+        }else {
+            val = map.getOrDefault(tup.getField(gbfield),new ArrayList<>());
+        }
+        Field f = tup.getField(afield);
+        int value = Integer.parseInt(f.toString());
+        if(this.what == Op.MIN) {
+            if(val.size() == 0){
+                val.add(value);
+            } else {
+                if(value < val.get(0)){
+                    val.set(0,value);
+                }
+            }
+        } else if(this.what == Op.MAX) {
+            if(val.size() == 0){
+                val.add(value);
+            } else {
+                if(value > val.get(0)){
+                    val.set(0,value);
+                }
+            }
+        } else if(this.what == Op.AVG) {
+            if(val.size() == 0){
+                val.add(value);
+                val.add(1);
+            } else {
+                int avg = val.get(0);
+                int count = val.get(1);
+                val.set(0,(avg*count+value)/(count+1));
+                val.set(1,count+1);
+            }
+        } else if(this.what == Op.SUM) {
+            if(val.size() == 0){
+                val.add(value);
+            } else {
+                int sum = val.get(0);
+                val.set(0,sum+value);
+            }
+        } else if(this.what == Op.COUNT) {
+            if(val.size() == 0){
+                val.add(1);
+            } else {
+                int count = val.get(0);
+                val.set(0,count+1);
+            }
+        }
+        if(this.gbfield == NO_GROUPING){
+            map.put(null,val);
+        }else {
+            map.put(tup.getField(gbfield),val);
+        }
     }
-
     /**
      * Create a OpIterator over group aggregate results.
      * 
@@ -50,8 +127,46 @@ public class IntegerAggregator implements Aggregator {
      */
     public OpIterator iterator() {
         // some code goes here
-        throw new
-        UnsupportedOperationException("please implement me for lab2");
+        return new OpIterator() {
+            private Iterator<Field> it;
+            @Override
+            public void open() throws DbException, TransactionAbortedException {
+                this.it = map.keySet().iterator();
+            }
+
+            @Override
+            public boolean hasNext() throws DbException, TransactionAbortedException {
+                return this.it.hasNext();
+            }
+
+            @Override
+            public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
+                Field f = this.it.next();
+                Tuple tuple = new Tuple(td);
+                if(gbfield == NO_GROUPING){
+                    tuple.setField(0,new IntField(map.get(f).get(0)));
+                    return tuple;
+                }
+                tuple.setField(0,f);
+                tuple.setField(1,new IntField(map.get(f).get(0)));
+                return tuple;
+            }
+
+            @Override
+            public void rewind() throws DbException, TransactionAbortedException {
+                this.it = map.keySet().iterator();
+            }
+
+            @Override
+            public TupleDesc getTupleDesc() {
+                return td;
+            }
+
+            @Override
+            public void close() {
+                this.it = null;
+            }
+        };
     }
 
 }

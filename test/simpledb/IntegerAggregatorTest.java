@@ -13,6 +13,7 @@ import simpledb.common.Type;
 import simpledb.execution.Aggregator;
 import simpledb.execution.IntegerAggregator;
 import simpledb.execution.OpIterator;
+import simpledb.storage.Tuple;
 import simpledb.systemtest.SimpleDbTestBase;
 
 public class IntegerAggregatorTest extends SimpleDbTestBase {
@@ -138,8 +139,9 @@ public class IntegerAggregatorTest extends SimpleDbTestBase {
     scan1.open();
     IntegerAggregator agg = new IntegerAggregator(0, Type.INT_TYPE, 1, Aggregator.Op.SUM);
     try {
-      while (true)
+      while (true) {
         agg.mergeTupleIntoGroup(scan1.next());
+      }
     } catch (NoSuchElementException e) {
       // explicitly ignored
     }
@@ -151,7 +153,7 @@ public class IntegerAggregatorTest extends SimpleDbTestBase {
     int count = 0;
     try {
       while (true) {
-        it.next();
+        Tuple t = it.next();
         count++;
       }
     } catch (NoSuchElementException e) {
