@@ -3,6 +3,8 @@ package simpledb.execution;
 import net.sf.antcontrib.logic.Switch;
 import simpledb.common.DbException;
 import simpledb.common.Type;
+import simpledb.execution.AggregatorOperator.AggOperatorFactory;
+import simpledb.execution.AggregatorOperator.AggregatorOperator;
 import simpledb.storage.Field;
 import simpledb.storage.IntField;
 import simpledb.storage.Tuple;
@@ -18,12 +20,11 @@ public class IntegerAggregator implements Aggregator {
 
     private static final long serialVersionUID = 1L;
 
-    private int gbfield;
-    private Type gbfieldtype;
-    private int afield;
-    private Op what;
-    private Map<Field, List<Integer>> map;
-    private TupleDesc td;
+    private final int gbfield;
+    private final int afield;
+    private final Op what;
+    private final Map<Field, AggregatorOperator> map;
+    private final TupleDesc td;
     /**
      * Aggregate constructor
      * 
@@ -42,7 +43,6 @@ public class IntegerAggregator implements Aggregator {
     public IntegerAggregator(int gbfield, Type gbfieldtype, int afield, Op what) {
         // some code goes here
         this.gbfield = gbfield;
-        this.gbfieldtype = gbfieldtype;
         this.afield = afield;
         this.what = what;
         this.map = new HashMap<>();
@@ -62,59 +62,19 @@ public class IntegerAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) {
         // some code goes here
-        List<Integer> val;
+        AggregatorOperator aggregatorOperator;
         if(this.gbfield == NO_GROUPING){
-            val = map.getOrDefault(null,new ArrayList<>());
+            aggregatorOperator = map.getOrDefault(null, AggOperatorFactory.createOperator(what));
         }else {
-            val = map.getOrDefault(tup.getField(gbfield),new ArrayList<>());
+            aggregatorOperator = map.getOrDefault(tup.getField(gbfield),AggOperatorFactory.createOperator(what));
         }
         Field f = tup.getField(afield);
         int value = Integer.parseInt(f.toString());
-        if(this.what == Op.MIN) {
-            if(val.size() == 0){
-                val.add(value);
-            } else {
-                if(value < val.get(0)){
-                    val.set(0,value);
-                }
-            }
-        } else if(this.what == Op.MAX) {
-            if(val.size() == 0){
-                val.add(value);
-            } else {
-                if(value > val.get(0)){
-                    val.set(0,value);
-                }
-            }
-        } else if(this.what == Op.AVG) {
-            if(val.size() == 0){
-                val.add(value);
-                val.add(1);
-            } else {
-                int sum = val.get(0);
-                int count = val.get(1);
-                val.set(0,sum+value);
-                val.set(1,count+1);
-            }
-        } else if(this.what == Op.SUM) {
-            if(val.size() == 0){
-                val.add(value);
-            } else {
-                int sum = val.get(0);
-                val.set(0,sum+value);
-            }
-        } else if(this.what == Op.COUNT) {
-            if(val.size() == 0){
-                val.add(1);
-            } else {
-                int count = val.get(0);
-                val.set(0,count+1);
-            }
-        }
+        aggregatorOperator.insert(value);
         if(this.gbfield == NO_GROUPING){
-            map.put(null,val);
+            map.put(null,aggregatorOperator);
         }else {
-            map.put(tup.getField(gbfield),val);
+            map.put(tup.getField(gbfield),aggregatorOperator);
         }
     }
     /**
@@ -144,15 +104,11 @@ public class IntegerAggregator implements Aggregator {
                 Field f = this.it.next();
                 Tuple tuple = new Tuple(td);
                 if(gbfield == NO_GROUPING){
-                    if(what == Op.AVG){
-                        tuple.setField(0,new IntField(map.get(f).get(0)/map.get(f).get(1)));
-                    }else tuple.setField(0,new IntField(map.get(f).get(0)));
+                    tuple.setField(0,new IntField(map.get(f).get()));
                     return tuple;
                 }
                 tuple.setField(0,f);
-                if(what == Op.AVG){
-                    tuple.setField(1,new IntField(map.get(f).get(0)/map.get(f).get(1)));
-                }else tuple.setField(1,new IntField(map.get(f).get(0)));
+                tuple.setField(1,new IntField(map.get(f).get()));
                 return tuple;
             }
 
