@@ -91,9 +91,9 @@ public class IntegerAggregator implements Aggregator {
                 val.add(value);
                 val.add(1);
             } else {
-                int avg = val.get(0);
+                int sum = val.get(0);
                 int count = val.get(1);
-                val.set(0,(avg*count+value)/(count+1));
+                val.set(0,sum+value);
                 val.set(1,count+1);
             }
         } else if(this.what == Op.SUM) {
@@ -144,11 +144,15 @@ public class IntegerAggregator implements Aggregator {
                 Field f = this.it.next();
                 Tuple tuple = new Tuple(td);
                 if(gbfield == NO_GROUPING){
-                    tuple.setField(0,new IntField(map.get(f).get(0)));
+                    if(what == Op.AVG){
+                        tuple.setField(0,new IntField(map.get(f).get(0)/map.get(f).get(1)));
+                    }else tuple.setField(0,new IntField(map.get(f).get(0)));
                     return tuple;
                 }
                 tuple.setField(0,f);
-                tuple.setField(1,new IntField(map.get(f).get(0)));
+                if(what == Op.AVG){
+                    tuple.setField(1,new IntField(map.get(f).get(0)/map.get(f).get(1)));
+                }else tuple.setField(1,new IntField(map.get(f).get(0)));
                 return tuple;
             }
 

@@ -2,11 +2,13 @@ package simpledb.execution;
 
 import simpledb.common.DbException;
 import simpledb.common.Type;
+import simpledb.storage.Field;
 import simpledb.storage.Tuple;
 import simpledb.storage.TupleDesc;
 import simpledb.transaction.TransactionAbortedException;
 
 import java.util.NoSuchElementException;
+import java.util.Objects;
 
 
 /**
@@ -20,6 +22,8 @@ public class Aggregate extends Operator {
     private OpIterator child;
     private int afield;
     private int gfield;
+    private Type gbfieldtype;
+    private Type afieldtype;
     private Aggregator.Op aop;
     private Aggregator aggregator;
     private TupleDesc td;
@@ -44,15 +48,18 @@ public class Aggregate extends Operator {
         this.afield = afield;
         this.gfield = gfield;
         this.aop = aop;
+        this.afieldtype = child.getTupleDesc().getFieldType(afield);
         if(this.gfield == Aggregator.NO_GROUPING){
-            this.td = new TupleDesc(new Type[]{child.getTupleDesc().getFieldType(afield)});
+            this.td = new TupleDesc(new Type[]{this.afieldtype});
+            this.gbfieldtype = null;
         } else {
-            this.td = new TupleDesc(new Type[]{child.getTupleDesc().getFieldType(gfield),child.getTupleDesc().getFieldType(afield)});
+            this.gbfieldtype = child.getTupleDesc().getFieldType(gfield);
+            this.td = new TupleDesc(new Type[]{this.gbfieldtype,this.afieldtype});
         }
-        if(td.getFieldType(afield).equals(Type.INT_TYPE)){
-            this.aggregator = new IntegerAggregator(gfield,td.getFieldType(gfield),afield,aop);
-        } else if(td.getFieldType(afield).equals(Type.STRING_TYPE)) {
-            this.aggregator = new StringAggregator(gfield,td.getFieldType(gfield),afield,aop);
+        if(this.afieldtype.equals(Type.INT_TYPE)){
+            this.aggregator = new IntegerAggregator(gfield,this.gbfieldtype,afield,aop);
+        } else if(this.afieldtype.equals(Type.STRING_TYPE)) {
+            this.aggregator = new StringAggregator(gfield,this.gbfieldtype,afield,aop);
         }
     }
 
@@ -109,6 +116,7 @@ public class Aggregate extends Operator {
             TransactionAbortedException {
         // some code goes here
         if(!init) {
+            this.child.open();
             while (this.child.hasNext()) {
                 this.aggregator.mergeTupleIntoGroup(child.next());
             }
